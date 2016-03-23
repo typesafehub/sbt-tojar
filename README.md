@@ -17,7 +17,7 @@ intermediate creation of the separate classfiles.
 ## Usage
 
 * add to your project/plugin.sbt the line:
-   `addSbtPlugin("com.typesafe.sbt" % "sbt-tojar" % "0.2")`
+   `addSbtPlugin("com.typesafe.sbt" % "sbt-tojar" % "0.3")`
 * then add to the settings of the subprojects for which you would like to enable this functionality:
    `straightToJar := true`
 

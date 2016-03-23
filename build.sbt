@@ -1,5 +1,5 @@
 organization := "com.typesafe.sbt"
-version := "0.2"
+version := "0.3"
 name := "sbt-tojar"
 sbtPlugin := true
 publishMavenStyle := false

@@ -196,7 +196,8 @@ object ToJar extends AutoPlugin {
       import java.util.jar.JarEntry
 
       def injectJar(jar: File, dir: File) = {
-        withTemporaryFile("inject", "tempJar") { temp =>
+        val files = dir.**(-DirectoryFilter).get
+        if (!files.isEmpty) withTemporaryFile("inject", "tempJar") { temp =>
           val out = new JarOutputStream(new BufferedOutputStream(new FileOutputStream(temp)))
 
           // Initially we copy the old jar content, and later we append the new entries
@@ -223,7 +224,6 @@ object ToJar extends AutoPlugin {
               map.updated(entry.getName, entry)
           }
 
-          val files = dir.**(-DirectoryFilter).get
           val targets = files.map(relativize(dir, _).getOrElse("Internal error while relativizing, please report."))
 
           // Copy all the content, skipping the entries that will be replaced
@@ -256,25 +256,27 @@ object ToJar extends AutoPlugin {
 
       def injectJar(jar: File, dir: File) = {
         val files = dir.**(-DirectoryFilter).get
-        val targets = files.map("/" + relativize(dir, _).getOrElse("Internal error while relativizing, please report."))
-        val env: JMap[String, String] = new JHashMap[String, String]()
-        env.put("create", "false")
-        val uri = URI.create("jar:" + jar.toURI) // for escaping blanks&symbols
-        //      val fs = FileSystems.getFileSystem(uri)
-        val fs = FileSystems.newFileSystem(uri, env, null)
-        try {
-          val fileDirs = files.map { f => Option(f.getCanonicalFile().getParentFile()) }.distinct.flatten
-          fileDirs.map { d =>
-            val targetPath = fs.getPath("/" + (relativize(dir, d).getOrElse("")))
-            Files.createDirectories(targetPath)
+        if (!files.isEmpty) {
+          val targets = files.map("/" + relativize(dir, _).getOrElse("Internal error while relativizing, please report."))
+          val env: JMap[String, String] = new JHashMap[String, String]()
+          env.put("create", "false")
+          val uri = URI.create("jar:" + jar.toURI) // for escaping blanks&symbols
+          //      val fs = FileSystems.getFileSystem(uri)
+          val fs = FileSystems.newFileSystem(uri, env, null)
+          try {
+            val fileDirs = files.map { f => Option(f.getCanonicalFile().getParentFile()) }.distinct.flatten
+            fileDirs.map { d =>
+              val targetPath = fs.getPath("/" + (relativize(dir, d).getOrElse("")))
+              Files.createDirectories(targetPath)
+            }
+            files.zip(targets).foreach {
+              case (file, target) =>
+                val entryPath = fs.getPath(target)
+                Files.copy(file.toPath, entryPath, StandardCopyOption.REPLACE_EXISTING)
+            }
+          } finally {
+            fs.close()
           }
-          files.zip(targets).foreach {
-            case (file, target) =>
-              val entryPath = fs.getPath(target)
-              Files.copy(file.toPath, entryPath, StandardCopyOption.REPLACE_EXISTING)
-          }
-        } finally {
-          fs.close()
         }
       }
     }
